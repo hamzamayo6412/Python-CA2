@@ -7,7 +7,7 @@ todos:
     status: completed
   - id: phase2
     content: "Phase 2: RapidAPI integration — app/api.py, fetch and cache raw movie data to data/movies_raw.json"
-    status: pending
+    status: completed
   - id: phase3
     content: "Phase 3: Data processing — app/data_processor.py, clean raw JSON into data/movies_clean.csv with a combined tags column"
     status: pending
