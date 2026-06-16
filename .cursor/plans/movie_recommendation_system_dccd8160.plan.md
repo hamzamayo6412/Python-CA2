@@ -8,8 +8,11 @@ todos:
   - id: phase2
     content: "Phase 2: RapidAPI integration — app/api.py, fetch and cache raw movie data to data/movies_raw.json"
     status: completed
-  - id: phase3
-    content: "Phase 3: Data processing — app/data_processor.py, clean raw JSON into data/movies_clean.csv with a combined tags column"
+  - id: phase3a
+    content: "Phase 3A: Parse raw API data — load movies_raw.json, extract and normalize core fields into structured records"
+    status: completed
+  - id: phase3b
+    content: "Phase 3B: Build feature tags — combine genre/description/cast/keywords into tags column, save data/movies_clean.csv"
     status: pending
   - id: phase4
     content: "Phase 4: Recommendation engine — app/recommender.py using TF-IDF + cosine_similarity, pickle the matrix"
@@ -67,16 +70,46 @@ Goal: Connect to RapidAPI and fetch movie data.
 
 ---
 
-## Phase 3 — Data Processing
+## Phase 3A — Parse & Normalize Raw Data
 
-Goal: Clean and structure raw API data into a usable format for the recommendation engine.
+Goal: Turn the nested IMDB236 cache into a flat, consistent dataset.
 
-- Create `app/data_processor.py`
-- Parse raw JSON → extract fields: `id`, `title`, `genre`, `description`, `rating`, `cast`, `keywords`
-- Combine text fields (genre + description + cast) into a single `tags` column
-- Save cleaned data to `data/movies_clean.csv` using `pandas`
+- Create [`app/data_processor.py`](app/data_processor.py) with parsing helpers only (no CSV export yet)
+- Load [`data/movies_raw.json`](data/movies_raw.json) via `load_cached_movies()` from [`app/api.py`](app/api.py)
+- For each cached record (`id`, `list_data`, `details`), map IMDB236 fields into a standard schema:
+  - `id`, `title`, `genre`, `description`, `rating`, `cast`, `keywords`
+- Prefer `details` when present; fall back to `list_data` for missing fields
+- Deduplicate by `id` and drop records missing `id` or `title`
+- Expose `parse_raw_movies(raw_data) -> list[dict]` returning normalized records
+
+```mermaid
+flowchart LR
+    RawJSON["movies_raw.json"] -->|"load_cached_movies"| Parser["parse_raw_movies"]
+    Parser -->|"normalize fields"| Records["list of movie dicts"]
+```
 
 ---
+
+## Phase 3B — Feature Tags & CSV Export
+
+Goal: Engineer the text features the cosine similarity engine will use.
+
+- Extend [`app/data_processor.py`](app/data_processor.py) with feature-building functions
+- Add `build_tags(movie)` — concatenate `genre`, `description`, `cast`, and `keywords` into one lowercase `tags` string
+- Handle nulls/empty lists safely (skip blanks, join list fields with spaces)
+- Add `process_movies(raw_path, output_path)` pipeline: parse → build tags → save CSV
+- Save output to [`data/movies_clean.csv`](data/movies_clean.csv) via `pandas` with columns: `id`, `title`, `genre`, `description`, `rating`, `cast`, `keywords`, `tags`
+- Expose `load_clean_movies(path)` for use in Phases 4–5
+- Runnable via `python -m app.data_processor`
+
+```mermaid
+flowchart LR
+    Records["parsed movie dicts"] -->|"build_tags"| TagsCol["tags column"]
+    TagsCol -->|"pandas.to_csv"| CleanCSV["movies_clean.csv"]
+```
+
+---
+
 
 ## Phase 4 — Recommendation Engine
 
