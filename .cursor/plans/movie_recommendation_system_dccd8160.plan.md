@@ -13,7 +13,7 @@ todos:
     status: completed
   - id: phase3b
     content: "Phase 3B: Build feature tags — combine genre/description/cast/keywords into tags column, save data/movies_clean.csv"
-    status: pending
+    status: completed
   - id: phase4
     content: "Phase 4: Recommendation engine — app/recommender.py using TF-IDF + cosine_similarity, pickle the matrix"
     status: pending

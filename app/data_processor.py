@@ -1,4 +1,11 @@
+from pathlib import Path
+
+import pandas as pd
+
 from app.api import RAW_MOVIES_PATH, load_cached_movies
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+CLEAN_MOVIES_PATH = DATA_DIR / "movies_clean.csv"
 
 STANDARD_FIELDS = (
     "id",
@@ -9,6 +16,8 @@ STANDARD_FIELDS = (
     "cast",
     "keywords",
 )
+
+CSV_COLUMNS = STANDARD_FIELDS + ("tags",)
 
 
 def _as_text(value):
@@ -187,13 +196,58 @@ def load_parsed_movies(path=RAW_MOVIES_PATH):
     return parse_raw_movies(raw_data)
 
 
+def build_tags(movie):
+    """Combine text fields into a single lowercase tags string for similarity."""
+    parts = []
+    for field in ("genre", "description", "cast", "keywords"):
+        text = _as_text(movie.get(field))
+        if text:
+            parts.append(text)
+
+    return " ".join(parts).lower()
+
+
+def _add_tags_to_movies(movies):
+    enriched = []
+    for movie in movies:
+        record = dict(movie)
+        record["tags"] = build_tags(record)
+        enriched.append(record)
+    return enriched
+
+
+def process_movies(raw_path=RAW_MOVIES_PATH, output_path=CLEAN_MOVIES_PATH):
+    """Parse raw API data, build tags, and save cleaned movies to CSV."""
+    raw_data = load_cached_movies(raw_path)
+    movies = parse_raw_movies(raw_data)
+    movies_with_tags = _add_tags_to_movies(movies)
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    dataframe = pd.DataFrame(movies_with_tags, columns=CSV_COLUMNS)
+    dataframe.to_csv(output_path, index=False)
+
+    return dataframe
+
+
+def load_clean_movies(path=CLEAN_MOVIES_PATH):
+    """Load cleaned movie data from CSV."""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Cleaned movie file not found: {path}")
+
+    return pd.read_csv(path)
+
+
 if __name__ == "__main__":
     try:
-        movies = load_parsed_movies()
-        print(f"Parsed {len(movies)} movies from {RAW_MOVIES_PATH}")
-        if movies:
-            sample = movies[0]
+        dataframe = process_movies()
+        print(f"Saved {len(dataframe)} movies to {CLEAN_MOVIES_PATH}")
+        if not dataframe.empty:
+            sample = dataframe.iloc[0]
             print(f"Sample: {sample['id']} - {sample['title']}")
+            print(f"Tags: {sample['tags']}")
     except FileNotFoundError:
         sample_payload = {
             "movies": [
@@ -218,6 +272,9 @@ if __name__ == "__main__":
                 }
             ]
         }
-        movies = parse_raw_movies(sample_payload)
-        print(f"No cache found. Parsed {len(movies)} movies from sample data.")
-        print(movies[0])
+        movies = _add_tags_to_movies(parse_raw_movies(sample_payload))
+        dataframe = pd.DataFrame(movies, columns=CSV_COLUMNS)
+        CLEAN_MOVIES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        dataframe.to_csv(CLEAN_MOVIES_PATH, index=False)
+        print(f"No raw cache found. Saved {len(dataframe)} sample movies to {CLEAN_MOVIES_PATH}")
+        print(dataframe.iloc[0]["tags"])
