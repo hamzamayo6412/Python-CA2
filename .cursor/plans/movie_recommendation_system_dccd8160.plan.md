@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: phase4
     content: "Phase 4: Recommendation engine — app/recommender.py using TF-IDF + cosine_similarity, pickle the matrix"
-    status: pending
+    status: completed
   - id: phase5
     content: "Phase 5: Flask routes — app/routes.py with homepage, movie detail, and recommendations endpoints"
     status: pending
