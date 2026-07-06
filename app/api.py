@@ -105,34 +105,50 @@ def fetch_and_cache_movies(
     pages_per_genre=1,
     rows=25,
     output_path=RAW_MOVIES_PATH,
+    fallback_to_cache=True,
 ):
     """Fetch movie lists and details, then save the raw API responses to JSON."""
     genres = genres or [None]
     cached_movies = []
     seen_ids = set()
+    output_path = Path(output_path)
 
-    for genre in genres:
-        for page in range(1, pages_per_genre + 1):
-            list_response = fetch_movies(genre=genre, page=page, rows=rows)
-            movie_ids = _extract_movie_ids(list_response)
+    try:
+        for genre in genres:
+            for page in range(1, pages_per_genre + 1):
+                list_response = fetch_movies(genre=genre, page=page, rows=rows)
+                movie_ids = _extract_movie_ids(list_response)
 
-            for movie_id in movie_ids:
-                if movie_id in seen_ids:
-                    continue
+                for movie_id in movie_ids:
+                    if movie_id in seen_ids:
+                        continue
 
-                seen_ids.add(movie_id)
-                details = fetch_movie_details(movie_id)
-                cached_movies.append(
-                    {
-                        "id": movie_id,
-                        "genre_query": genre,
-                        "list_data": _find_movie_in_list(list_response, movie_id),
-                        "details": details,
-                    }
-                )
+                    seen_ids.add(movie_id)
+                    try:
+                        details = fetch_movie_details(movie_id)
+                    except RapidAPIError:
+                        details = _find_movie_in_list(list_response, movie_id)
+
+                    cached_movies.append(
+                        {
+                            "id": movie_id,
+                            "genre_query": genre,
+                            "list_data": _find_movie_in_list(list_response, movie_id),
+                            "details": details,
+                        }
+                    )
+                    time.sleep(REQUEST_DELAY_SECONDS)
+
                 time.sleep(REQUEST_DELAY_SECONDS)
-
-            time.sleep(REQUEST_DELAY_SECONDS)
+    except RapidAPIError as error:
+        if fallback_to_cache and output_path.exists():
+            cached = load_cached_movies(output_path)
+            cached.setdefault("meta", {})
+            cached["meta"]["used_cache_fallback"] = True
+            cached["meta"]["refresh_error"] = str(error)
+            cached["meta"]["refresh_failed_at"] = datetime.now(timezone.utc).isoformat()
+            return cached
+        raise
 
     payload = {
         "meta": {
@@ -142,11 +158,11 @@ def fetch_and_cache_movies(
             "pages_per_genre": pages_per_genre,
             "rows": rows,
             "movie_count": len(cached_movies),
+            "used_cache_fallback": False,
         },
         "movies": cached_movies,
     }
 
-    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2)

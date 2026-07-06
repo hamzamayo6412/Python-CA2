@@ -1,0 +1,34 @@
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+}
+
+main {
+    flex: 1;
+}
+
+.movie-card,
+.recommendation-card {
+    border: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.movie-card:hover,
+.recommendation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
+
+.recommendation-card {
+    width: 280px;
+}
+
+.recommendations-carousel {
+    scroll-snap-type: x mandatory;
+}
+
+.recommendation-card {
+    scroll-snap-align: start;
+}

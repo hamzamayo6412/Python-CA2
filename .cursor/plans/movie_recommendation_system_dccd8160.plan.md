@@ -19,13 +19,13 @@ todos:
     status: completed
   - id: phase5
     content: "Phase 5: Flask routes — app/routes.py with homepage, movie detail, and recommendations endpoints"
-    status: pending
+    status: completed
   - id: phase6
     content: "Phase 6: Frontend — Jinja2 templates with Bootstrap 5 for movie grid, detail page, and recommendation cards"
-    status: pending
+    status: completed
   - id: phase7
     content: "Phase 7: Testing & polish — error handling, data refresh route, README"
-    status: pending
+    status: completed
 isProject: false
 ---
 
