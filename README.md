@@ -2,6 +2,43 @@
 
 A Flask web app that fetches movie data from RapidAPI (IMDB236), builds a content-based recommendation engine using **TF-IDF + Cosine Similarity**, and serves movie recommendations through a Bootstrap UI.
 
+## Data Source (RapidAPI)
+
+Movie metadata for this project comes from the **IMDB236** API on [RapidAPI](https://rapidapi.com/):
+
+- **API listing:** [IMDB236 on RapidAPI](https://rapidapi.com/rapidapi-org1-rapidapi-org-default/api/imdb236)
+- **API playground (endpoint used):** [IMDB236 API playground](https://rapidapi.com/rapidapi-org1-rapidapi-org-default/api/imdb236/playground/apiendpoint_ec1b9d5f-bc06-4593-9c6b-98fe3a732aee)
+- **API host:** `imdb236.p.rapidapi.com`
+- **Base URL:** `https://imdb236.p.rapidapi.com/api/imdb`
+
+You need a free RapidAPI account and an active subscription to this API to fetch live movie data. Responses are cached locally in `data/movies_raw.json` so the app can still run when the API is unavailable.
+
+### API field mapping
+
+The IMDB236 response uses fields such as `primaryTitle`, `genres`, `interests`, `description`, `averageRating`, and `type`. Our pipeline maps them like this:
+
+| IMDB236 field | Internal field | Used in recommender |
+|---|---|---|
+| `id` | `id` | Lookup key |
+| `primaryTitle` / `originalTitle` | `title` | Display + lookup |
+| `genres` | `genre` | Yes (`tags`) |
+| `description` | `description` | Yes (`tags`) |
+| `interests` | `keywords` | Yes (`tags`) |
+| `averageRating` | `rating` | Display only |
+| `type` (movie, tvSeries, etc.) | `type` | Yes (`tags`) |
+| `cast` / `stars` | `cast` | Yes (`tags`) when present |
+
+**Note:** The playground/list payload does not include cast data. Recommendations are driven mainly by `genres`, `interests`, `description`, and `type`. If you fetch per-title detail endpoints that return cast, that field is included automatically.
+
+## AI-Assisted Development
+
+This project was planned and implemented with help from **AI coding assistants** (Cursor). AI was used in two main areas:
+
+1. **Project planning** — Breaking the work into phases (API integration, data processing, recommender engine, Flask routes, and frontend), defining the architecture, and documenting the step-by-step implementation plan.
+2. **Recommender system** — Designing and writing the content-based recommendation logic in `app/recommender.py`, including TF-IDF vectorization, cosine similarity, model persistence with pickle, and integration with the cleaned movie dataset.
+
+The recommender combines text features (`type`, `genre`, `description`, `cast`, `keywords`) into a single `tags` field, converts them into numerical vectors, and ranks similar movies by cosine similarity. Human review and testing were applied to validate the generated code and behavior.
+
 ## Features
 
 - Fetch and cache movies from RapidAPI
@@ -60,7 +97,7 @@ RAPIDAPI_HOST=imdb236.p.rapidapi.com
 **RapidAPI setup**
 
 1. Create a free account at [RapidAPI](https://rapidapi.com/)
-2. Subscribe to [IMDB236](https://rapidapi.com/octopusteam-octopusteam-default/api/imdb236)
+2. Subscribe to [IMDB236](https://rapidapi.com/rapidapi-org1-rapidapi-org-default/api/imdb236) (see [Data Source](#data-source-rapidapi) above)
 3. Copy your API key into `RAPIDAPI_KEY` in `.env`
 
 ### 3. Fetch and prepare data
@@ -103,7 +140,7 @@ If the RapidAPI request fails but cached data exists, the app falls back to the 
 
 ## How Recommendations Work
 
-1. Text fields (`genre`, `description`, `cast`, `keywords`) are combined into a `tags` column
+1. Text fields (`type`, `genre`, `description`, `cast`, `keywords`) are combined into a `tags` column (`interests` from the API are stored as `keywords`)
 2. `TfidfVectorizer` converts tags into numerical vectors
 3. `cosine_similarity` computes how similar each movie pair is
 4. For a selected movie, the top-N highest-scoring matches are returned

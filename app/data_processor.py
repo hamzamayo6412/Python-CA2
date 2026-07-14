@@ -108,7 +108,13 @@ def _parse_single_record(record):
 
     details = record.get("details") if isinstance(record.get("details"), dict) else {}
     list_data = record.get("list_data") if isinstance(record.get("list_data"), dict) else {}
-    source = _merge_sources(list_data, details)
+    wrapper_keys = {"details", "list_data", "genre_query"}
+    flat_source = {
+        key: value
+        for key, value in record.items()
+        if key not in wrapper_keys and not isinstance(value, dict)
+    }
+    source = _merge_sources(flat_source, list_data, details)
 
     movie_id = _as_text(
         record.get("id")
@@ -152,8 +158,9 @@ def _parse_single_record(record):
 
     cast = _extract_list_field(source, "stars", "cast", "actors", "topCast")
     keywords = _extract_list_field(source, "keywords", "keywordList", "interests")
+    content_type = _as_text(_pick_first(source, "type", "titleType"))
 
-    return {
+    parsed = {
         "id": movie_id,
         "title": title,
         "genre": genre,
@@ -162,6 +169,10 @@ def _parse_single_record(record):
         "cast": cast,
         "keywords": keywords,
     }
+    if content_type:
+        parsed["type"] = content_type
+
+    return parsed
 
 
 def parse_raw_movies(raw_data):
@@ -199,7 +210,7 @@ def load_parsed_movies(path=RAW_MOVIES_PATH):
 def build_tags(movie):
     """Combine text fields into a single lowercase tags string for similarity."""
     parts = []
-    for field in ("genre", "description", "cast", "keywords"):
+    for field in ("type", "genre", "description", "cast", "keywords"):
         text = _as_text(movie.get(field))
         if text:
             parts.append(text)

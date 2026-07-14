@@ -57,6 +57,32 @@ def test_build_tags():
     assert build_tags(movie) == "drama a prison story. actor one hope"
 
 
+def test_parse_flat_imdb236_record():
+    """IMDB236 playground responses are flat title objects, not wrapped caches."""
+    payload = [
+        {
+            "id": "tt21103218",
+            "primaryTitle": "The Lost Bus",
+            "type": "movie",
+            "description": "A wayward school bus driver and a dedicated school teacher battle to save 22 children from a terrifying inferno.",
+            "genres": ["Biography", "Drama", "History"],
+            "interests": ["Disaster", "Biography", "Drama", "History", "Thriller"],
+            "averageRating": 6.8,
+        }
+    ]
+    movies = parse_raw_movies(payload)
+    assert len(movies) == 1
+    movie = movies[0]
+    assert movie["id"] == "tt21103218"
+    assert movie["title"] == "The Lost Bus"
+    assert movie["genre"] == "Biography, Drama, History"
+    assert movie["keywords"] == "Disaster, Biography, Drama, History, Thriller"
+    assert movie["rating"] == 6.8
+    assert movie["cast"] == ""
+    assert movie["type"] == "movie"
+    assert "disaster" in build_tags(movie)
+
+
 def test_parse_raw_movies_deduplicates():
     payload = {
         "movies": [
